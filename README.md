@@ -1,95 +1,105 @@
 # AI Agent Guardian
-**An automated AI governance & cost gateway** — flags data-leak risk, estimates cost, and logs every AI request before it reaches a model.
 
-Built as a final-year-project-worthy demo of the top pain points companies care about right now: AI security leaks, uncontrolled AI spend, and lack of an audit trail for AI usage.
+**An automated AI governance & cost-control gateway.**
 
----
+AI Agent Guardian sits between users and an LLM, screening every request for sensitive-data leakage, blocking high-risk prompts before they reach a model, estimating token cost, and logging a full audit trail — all visualized on a live analytics dashboard.
 
-## What it does
-
-Every prompt submitted through the dashboard is routed through the Guardian, which:
-
-1. **Scans for sensitive data** — emails, Indian mobile numbers, card numbers, Aadhaar-like numbers, API keys, and password fields — using regex pattern matching.
-2. **Scores risk** — none / low / medium / high, based on how many and which patterns matched.
-3. **Blocks high-risk requests** before they'd reach a real model.
-4. **Estimates token usage and cost** for every request (input + simulated output).
-5. **Logs everything** to a SQLite audit trail — timestamp, prompt, risk level, blocked/allowed, tokens, cost.
-6. **Returns a response** — simulated by default (no API key needed), or you can wire in a real LLM call (see below).
-7. **Visualizes it all** on a live dashboard: total spend, blocked-request rate, risk breakdown, and requests-over-time.
-
-## Tech stack
-
-- **Backend:** Python, FastAPI, SQLite (no external DB needed)
-- **Frontend:** Single-file HTML/CSS/JS dashboard + Chart.js (no build step, no npm needed)
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-embedded-003B57?logo=sqlite&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 ---
 
-## Run it locally (2 minutes)
+## Overview
 
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-```
+Enterprise AI adoption is commonly blocked by two problems: employees leaking sensitive data into AI tools, and AI spend that's difficult to track or control. AI Agent Guardian addresses both by acting as a governance layer in front of any LLM integration.
 
-Then open **http://localhost:8000** in your browser — the backend serves the dashboard directly, so that's the only URL you need. API docs are at `http://localhost:8000/docs`.
+Every prompt passes through the gateway, which:
 
-That's it — try the "Try a risky example" button to see a request get blocked.
+1. **Screens for sensitive data** — emails, Indian mobile numbers, card numbers, Aadhaar-style numbers, API keys, and password fields, using pattern-based detection.
+2. **Assigns a risk score** — `none` / `low` / `medium` / `high`, based on which patterns matched.
+3. **Blocks high-risk requests** before they would reach a model.
+4. **Estimates token usage and cost** for every request.
+5. **Logs a complete audit trail** to SQLite — timestamp, prompt, risk level, outcome, tokens, cost.
+6. **Returns a response** — simulated by default for a zero-dependency demo, or wired to a real LLM in one function.
+7. **Visualizes usage** on a live dashboard — total spend, blocked-request rate, risk distribution, and request volume over time.
 
----
+## Tech Stack
 
-## Project structure
+| Layer | Technology |
+|---|---|
+| Backend | Python, FastAPI |
+| Database | SQLite |
+| Frontend | HTML, CSS, JavaScript, Chart.js |
+
+No build tooling required on either side — the backend serves the frontend directly as a single deployable service.
+
+## Project Structure
 
 ```
 ai-agent-guardian/
 ├── backend/
-│   ├── main.py           # FastAPI app: risk detection, cost estimation, logging, API routes
+│   ├── main.py           # API routes, risk detection, cost estimation, logging
 │   ├── requirements.txt
-│   └── guardian.db       # created automatically on first run (SQLite)
+│   └── guardian.db       # created automatically on first run
 ├── frontend/
-│   └── index.html        # single-file dashboard (HTML + CSS + JS, Chart.js via CDN)
+│   └── index.html        # dashboard (HTML/CSS/JS, Chart.js via CDN)
 └── README.md
 ```
 
----
+## Getting Started
 
-## Deploying it for free
+### Prerequisites
+- Python 3.10+
 
-The whole app is one Python service (FastAPI serves the dashboard too), so it deploys anywhere that runs Python:
+### Installation
 
-### Render.com (recommended — free tier, simplest)
-1. Push this folder to a GitHub repo.
-2. On [render.com](https://render.com) → New → Web Service → connect the repo.
+```bash
+cd backend
+python -m venv venv
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # macOS/Linux
+pip install -r requirements.txt
+```
+
+### Run
+
+```bash
+uvicorn main:app --reload --port 8000
+```
+
+Open **http://localhost:8000** — the backend serves the dashboard directly. Interactive API documentation is available at **http://localhost:8000/docs**.
+
+## Deployment
+
+The application is a single Python service, so it deploys anywhere that supports Python web services.
+
+**Render (recommended)**
+1. Push this repository to GitHub.
+2. On [render.com](https://render.com): New → Web Service → connect the repository.
 3. Root directory: `backend`
 4. Build command: `pip install -r requirements.txt`
 5. Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-6. Deploy. Your live URL will serve the dashboard directly.
 
-### Railway.app
-Same idea — set the root to `backend`, start command `uvicorn main:app --host 0.0.0.0 --port $PORT`.
+**Railway** follows the same configuration. Any standard `uvicorn`/`gunicorn`-compatible host works, since there is no separate frontend build step.
 
-### Fly.io / any VPS
-Standard `uvicorn`/`gunicorn` deployment — no special config needed since there's no separate frontend build step.
+> **Note:** SQLite persists to a local file, which is reset on redeploy on most free-tier hosts. For a production deployment with persistent storage, replace SQLite with Postgres — the `get_db()` function in `main.py` is the only integration point that requires changes.
 
-> **Note on SQLite in production:** SQLite writes to a local file, which is fine for a demo/portfolio project but resets on most free-tier redeploys (ephemeral filesystem). For a persistent production version, swap `sqlite3` for Postgres (Render/Railway both offer free Postgres) — the `get_db()` function in `main.py` is the only place that would need to change.
+## Extending to a Real LLM
 
----
+By default, `simulate_llm_response()` in `backend/main.py` returns a canned response so the project runs with no API keys required. To connect a real model:
 
-## Wiring in a real LLM (optional, for a stronger demo)
+1. Store your API key as an environment variable.
+2. Replace the body of `simulate_llm_response()` with a real API call — invoked only when `blocked` is `False`.
+3. Risk detection, cost logging, and the dashboard require no changes.
 
-Right now `simulate_llm_response()` in `backend/main.py` returns a canned response so the project runs with zero API keys. To make it call a real model:
+## Design Notes
 
-1. Add your API key as an environment variable (e.g. `ANTHROPIC_API_KEY`).
-2. Replace the body of `simulate_llm_response()` with a real API call, **but only when `blocked` is `False`** — that's the whole point of the gateway.
-3. Everything else (risk detection, cost logging, dashboard) keeps working unchanged.
+- **Pattern matching over ML classification:** deterministic, zero inference cost, and fully explainable — a reasonable first line of defense for a rules-based gateway. A natural extension is a lightweight NER model for softer PII categories.
+- **SQLite for persistence:** zero-configuration storage suited to a demo deployment, with a single swap point to Postgres for production use.
+- **Single-service architecture:** the backend serves the frontend directly, removing the need for a separate static hosting setup or build pipeline.
 
----
+## License
 
-## What to say about it in an interview / on your resume
-
-> "Built an AI governance and cost-control gateway that intercepts AI requests, flags PII/credential leakage using pattern matching, blocks high-risk requests before they reach a model, and tracks token spend with a live analytics dashboard — addressing the two biggest enterprise AI adoption blockers: data leakage and uncontrolled cost."
-
-Talking points if asked to go deeper:
-- **Why regex and not an ML classifier?** Fast, deterministic, zero inference cost, explainable — a reasonable v1 for a rules-based gateway. A natural v2 extension is a lightweight NER/classifier model for softer PII types.
-- **Why SQLite?** Zero-config persistence, swappable for Postgres in one function.
-- **Scaling:** the same gateway pattern is how real AI-governance products (e.g. LLM proxies) work — add a real model call, rate limiting, and per-user budgets, and you have a production-grade version.
+MIT
