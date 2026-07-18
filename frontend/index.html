@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Agent Guardian — by Ashish</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #05070a;
+    --panel: #0e1410;
+    --panel-2: #121b15;
+    --border: #1f2e23;
+    --text: #eaf5ee;
+    --muted: #7f9c8b;
+    --accent: #22c55e;
+    --accent-2: #4ade80;
+    --danger: #ef4444;
+    --warn: #f59e0b;
+    --ok: #22c55e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+    background: radial-gradient(circle at 20% -10%, #0f1c13 0%, var(--bg) 55%);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 32px 24px 64px;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand .logo {
+    width: 42px; height: 42px; border-radius: 11px;
+    background: linear-gradient(135deg, #16301f 0%, #0a0c0a 55%, #000 100%);
+    border: 1px solid rgba(74,222,128,0.45);
+    box-shadow: 0 0 18px rgba(34,197,94,0.25), inset 0 0 10px rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 19px; color: var(--accent-2);
+    font-family: "Georgia", serif;
+  }
+  h1 { font-size: 20px; margin: 0; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .badge {
+    font-size: 11px; padding: 4px 10px; border-radius: 999px;
+    background: rgba(34,197,94,0.12); color: var(--accent); border: 1px solid rgba(34,197,94,0.35);
+  }
+
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+  @media (max-width: 800px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+  }
+  .stat-label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .stat-value { font-size: 24px; font-weight: 700; margin-top: 6px; }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+  .panel h2 { font-size: 15px; margin: 0 0 14px; }
+
+  textarea {
+    width: 100%; min-height: 100px; resize: vertical;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); padding: 12px; font-size: 14px; font-family: inherit;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); }
+
+  .row { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+  button {
+    background: var(--accent); color: white; border: none; border-radius: 10px;
+    padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.08); }
+  button.secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+
+  .hint { color: var(--muted); font-size: 12px; }
+
+  .result { margin-top: 16px; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2); display: none; }
+  .result.show { display: block; }
+  .result-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .pill { font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+  .pill.none { background: rgba(34,197,94,.15); color: var(--ok); }
+  .pill.low { background: rgba(52,211,153,.15); color: var(--accent-2); }
+  .pill.medium { background: rgba(245,158,11,.15); color: var(--warn); }
+  .pill.high { background: rgba(239,68,68,.15); color: var(--danger); }
+  .pill.blocked { background: rgba(239,68,68,.2); color: var(--danger); }
+  .flags { color: var(--muted); font-size: 12px; }
+  .response-text { margin-top: 10px; font-size: 14px; line-height: 1.5; }
+  .blocked-msg { color: var(--danger); font-size: 14px; margin-top: 10px; }
+
+  .two-col { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; }
+  @media (max-width: 850px) { .two-col { grid-template-columns: 1fr; } }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; }
+  td.prompt-cell { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .log-empty { color: var(--muted); padding: 20px 0; text-align: center; font-size: 13px; }
+
+  canvas { max-height: 220px; }
+
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 30px; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="logo">A</div>
+      <div>
+        <h1>AI Agent Guardian</h1>
+        <div class="sub">Automated AI governance &amp; cost gateway · by Ashish</div>
+      </div>
+    </div>
+    <span class="badge" id="apiStatus">checking backend…</span>
+  </header>
+
+  <div class="grid">
+    <div class="card"><div class="stat-label">Total Requests</div><div class="stat-value" id="statTotal">–</div></div>
+    <div class="card"><div class="stat-label">Blocked</div><div class="stat-value" id="statBlocked">–</div><div class="stat-sub" id="statBlockedPct">–</div></div>
+    <div class="card"><div class="stat-label">Est. Cost (USD)</div><div class="stat-value" id="statCost">–</div></div>
+    <div class="card"><div class="stat-label">Tokens Processed</div><div class="stat-value" id="statTokens">–</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>Submit a request through the Guardian</h2>
+    <textarea id="promptInput" placeholder="Type a prompt as if you were sending it to an AI agent... e.g. 'Summarize this support ticket for me.'"></textarea>
+    <div class="row">
+      <button id="submitBtn">Run through Guardian</button>
+      <button class="secondary" id="sampleRiskyBtn" type="button">Try a risky example</button>
+      <span class="hint">No real API key needed — responses are simulated for this demo.</span>
+    </div>
+
+    <div class="result" id="resultBox">
+      <div class="result-head">
+        <span class="pill" id="riskPill">–</span>
+        <span id="blockedPill"></span>
+        <span class="flags" id="flagsText"></span>
+      </div>
+      <div class="hint" id="metaText"></div>
+      <div class="response-text" id="responseText"></div>
+      <div class="blocked-msg" id="blockedText" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="panel">
+      <h2>Requests over time</h2>
+      <canvas id="dailyChart"></canvas>
+    </div>
+    <div class="panel">
+      <h2>Risk breakdown</h2>
+      <canvas id="riskChart"></canvas>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Audit log</h2>
+    <div id="logTableWrap">
+      <div class="log-empty">Loading…</div>
+    </div>
+  </div>
+
+  <footer>
+    AI Agent Guardian — built by Ashish · backend: FastAPI · <a href="/docs" target="_blank">API docs</a>
+  </footer>
+</div>
+
+<script>
+const API_BASE = window.location.origin.includes("null") ? "http://localhost:8000" : "";
+// If the frontend is opened as a static file (file://) or on a different
+// port than the backend, set this to your backend URL, e.g.:
+// const API_BASE = "http://localhost:8000";
+
+let dailyChart, riskChart;
+
+async function apiGet(path) {
+  const res = await fetch((API_BASE || "") + path);
+  if (!res.ok) throw new Error("Request failed: " + res.status);
+  return res.json();
+}
+async function apiPost(path, body) {
+  const res = await fetch((API_BASE || "") + path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error("Request failed: " + res.status);
+  return res.json();
+}
+
+function fmtUsd(n) {
+  return "$" + Number(n).toFixed(4);
+}
+
+async function refreshStats() {
+  try {
+    const stats = await apiGet("/api/stats");
+    document.getElementById("apiStatus").textContent = "backend connected";
+    document.getElementById("statTotal").textContent = stats.total_requests;
+    document.getElementById("statBlocked").textContent = stats.blocked_requests;
+    const pct = stats.total_requests ? Math.round(100 * stats.blocked_requests / stats.total_requests) : 0;
+    document.getElementById("statBlockedPct").textContent = pct + "% of total";
+    document.getElementById("statCost").textContent = fmtUsd(stats.total_cost_usd);
+    document.getElementById("statTokens").textContent = stats.total_tokens.toLocaleString();
+
+    renderDailyChart(stats.daily);
+    renderRiskChart(stats.by_risk_level);
+  } catch (e) {
+    document.getElementById("apiStatus").textContent = "backend not reachable";
+    document.getElementById("apiStatus").style.color = "#ef4444";
+  }
+}
+
+function renderDailyChart(daily) {
+  const labels = daily.map(d => d.day);
+  const counts = daily.map(d => d.c);
+  const ctx = document.getElementById("dailyChart");
+  if (dailyChart) dailyChart.destroy();
+  dailyChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "Requests",
+        data: counts,
+        borderColor: "#22c55e",
+        backgroundColor: "rgba(34,197,94,0.15)",
+        fill: true,
+        tension: 0.35,
+      }],
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#7f9c8b" }, grid: { color: "#152019" } },
+        y: { ticks: { color: "#7f9c8b" }, grid: { color: "#152019" }, beginAtZero: true },
+      },
+    },
+  });
+}
+
+function renderRiskChart(byRisk) {
+  const order = ["none", "low", "medium", "high"];
+  const colors = { none: "#22c55e", low: "#34d399", medium: "#f59e0b", high: "#ef4444" };
+  const labels = order.filter(k => byRisk[k]);
+  const data = labels.map(k => byRisk[k]);
+  const ctx = document.getElementById("riskChart");
+  if (riskChart) riskChart.destroy();
+  riskChart = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: labels.map(l => colors[l]) }],
+    },
+    options: {
+      plugins: { legend: { position: "bottom", labels: { color: "#eaf5ee" } } },
+    },
+  });
+}
+
+async function refreshLogs() {
+  try {
+    const logs = await apiGet("/api/logs?limit=25");
+    const wrap = document.getElementById("logTableWrap");
+    if (!logs.length) {
+      wrap.innerHTML = '<div class="log-empty">No requests yet — try submitting one above.</div>';
+      return;
+    }
+    let html = "<table><thead><tr><th>Time</th><th>Prompt</th><th>Risk</th><th>Blocked</th><th>Tokens</th><th>Cost</th></tr></thead><tbody>";
+    for (const row of logs) {
+      const time = new Date(row.created_at).toLocaleString();
+      html += `<tr>
+        <td>${time}</td>
+        <td class="prompt-cell" title="${escapeHtml(row.prompt)}">${escapeHtml(row.prompt)}</td>
+        <td><span class="pill ${row.risk_level}">${row.risk_level}</span></td>
+        <td>${row.blocked ? "🚫 yes" : "—"}</td>
+        <td>${row.tokens_est}</td>
+        <td>${fmtUsd(row.cost_usd)}</td>
+      </tr>`;
+    }
+    html += "</tbody></table>";
+    wrap.innerHTML = html;
+  } catch (e) {
+    // ignore; stats poll will surface connection errors
+  }
+}
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+async function submitPrompt() {
+  const promptInput = document.getElementById("promptInput");
+  const prompt = promptInput.value.trim();
+  if (!prompt) return;
+
+  const btn = document.getElementById("submitBtn");
+  btn.disabled = true;
+  btn.textContent = "Running…";
+
+  try {
+    const result = await apiPost("/api/analyze", { prompt, user_label: "demo-user" });
+
+    const box = document.getElementById("resultBox");
+    box.classList.add("show");
+
+    const riskPill = document.getElementById("riskPill");
+    riskPill.textContent = result.risk_level + " risk";
+    riskPill.className = "pill " + result.risk_level;
+
+    document.getElementById("blockedPill").innerHTML = result.blocked
+      ? '<span class="pill blocked">blocked</span>' : "";
+
+    document.getElementById("flagsText").textContent = result.risk_flags.length
+      ? "Flags: " + result.risk_flags.join(", ") : "No sensitive patterns detected";
+
+    document.getElementById("metaText").textContent =
+      `~${result.tokens_est} tokens · ${fmtUsd(result.cost_usd)} estimated cost`;
+
+    const responseEl = document.getElementById("responseText");
+    const blockedEl = document.getElementById("blockedText");
+    if (result.blocked) {
+      responseEl.style.display = "none";
+      blockedEl.style.display = "block";
+      blockedEl.textContent = "This request was blocked before reaching the model because it contains high-risk sensitive data patterns.";
+    } else {
+      blockedEl.style.display = "none";
+      responseEl.style.display = "block";
+      responseEl.textContent = result.response;
+    }
+
+    promptInput.value = "";
+    await Promise.all([refreshStats(), refreshLogs()]);
+  } catch (e) {
+    alert("Could not reach the backend. Make sure it's running (see README).");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Run through Guardian";
+  }
+}
+
+document.getElementById("submitBtn").addEventListener("click", submitPrompt);
+document.getElementById("promptInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submitPrompt();
+});
+document.getElementById("sampleRiskyBtn").addEventListener("click", () => {
+  document.getElementById("promptInput").value =
+    "Please email the invoice to ramesh.kumar@example.com and note his card number is 4111 1111 1111 1111.";
+});
+
+refreshStats();
+refreshLogs();
+setInterval(() => { refreshStats(); refreshLogs(); }, 8000);
+</script>
+</body>
+</html>
